@@ -51,4 +51,4 @@ else
 fi
 
 log "Pairing token/QR for the web UI is printed below by 't3 serve'."
-exec t3 serve --port "$T3CODE_PORT" --no-browser
+exec t3 serve --host "${T3CODE_HOST:-0.0.0.0}" --port "$T3CODE_PORT" --no-browser

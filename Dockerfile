@@ -13,8 +13,16 @@ RUN apt-get update \
 
 # nightly by default: --tailscale-serve and the remote-endpoints/pairing stack
 # are not in 0.0.28 (latest) yet. Override with --build-arg T3_VERSION=<tag>.
+# Toolchain is only for node-gyp (node-pty has no prebuilds on some arches)
+# and is removed in the same layer.
 ARG T3_VERSION=nightly
-RUN npm install -g "t3@${T3_VERSION}" && npm cache clean --force
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 make g++ \
+    && npm install -g "t3@${T3_VERSION}" \
+    && npm cache clean --force \
+    && apt-get purge -y python3 make g++ \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
 
 # Single persistent volume: t3 state (/data/.t3) + tailscale state (/data/tailscale).
 ENV HOME=/data \
