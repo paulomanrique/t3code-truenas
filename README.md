@@ -95,5 +95,7 @@ docker exec -it <container> t3 auth
   multi-backend pairing stack are not in the `latest` npm release yet. Pin a
   different version with `--build-arg T3_VERSION=<tag>`.
 - T3 Code is in early development (0.0.x) — expect breaking changes. The CI
-  workflow rebuilds weekly; if a nightly breaks, rebuild with a pinned
-  `T3_VERSION`.
+  workflow polls npm every 6 hours and publishes a new image whenever a new
+  `t3@nightly` appears, tagged both `:latest` and with the exact t3 version
+  (e.g. `:0.0.29-nightly.20260716.825`). If a nightly breaks, point the app at
+  the last good version tag.

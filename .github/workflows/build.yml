@@ -9,15 +9,44 @@ on:
         description: "t3 npm version/tag to install"
         default: "nightly"
   schedule:
-    # weekly rebuild to track t3@nightly
-    - cron: "17 6 * * 1"
+    # poll npm for a new t3@nightly; build only runs when the resolved
+    # version is not already published as an image tag
+    - cron: "11 */6 * * *"
 
 permissions:
   contents: read
   packages: write
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      exists: ${{ steps.ghcr.outputs.exists }}
+    steps:
+      - id: resolve
+        run: |
+          version=$(npm view "t3@${{ inputs.t3_version || 'nightly' }}" version)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "resolved t3 version: $version"
+
+      - id: ghcr
+        run: |
+          token=$(curl -fsS "https://ghcr.io/token?scope=repository:${{ github.repository }}:pull" | jq -r .token)
+          if curl -fsS -o /dev/null \
+              -H "Authorization: Bearer $token" \
+              -H "Accept: application/vnd.oci.image.index.v1+json" \
+              "https://ghcr.io/v2/${{ github.repository }}/manifests/${{ steps.resolve.outputs.version }}"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "image tag ${{ steps.resolve.outputs.version }} already published"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: check
+    # push/dispatch always build; scheduled runs only on a new t3 version
+    if: github.event_name != 'schedule' || needs.check.outputs.exists == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,18 +59,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - id: date
-        run: echo "date=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
-
       - uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64
           push: true
           build-args: |
-            T3_VERSION=${{ inputs.t3_version || 'nightly' }}
+            T3_VERSION=${{ needs.check.outputs.version }}
           tags: |
             ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ steps.date.outputs.date }}
+            ghcr.io/${{ github.repository }}:${{ needs.check.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
