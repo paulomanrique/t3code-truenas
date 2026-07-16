@@ -1,0 +1,18 @@
+# TrueNAS SCALE — Apps > Discover Apps > Install via YAML (Custom App).
+# No cap_add/devices needed: tailscale runs in userspace-networking mode.
+services:
+  t3code:
+    image: ghcr.io/paulomanrique/t3code-truenas:latest
+    restart: unless-stopped
+    ports:
+      - "3773:3773" # direct LAN access (optional; tailnet HTTPS works without it)
+    environment:
+      # Tailscale auth key (admin console > Settings > Keys). Only needed on
+      # first boot — state persists in the /data volume afterwards.
+      TS_AUTHKEY: "tskey-auth-REPLACE-ME"
+      TS_HOSTNAME: "t3code"
+      # TS_EXTRA_ARGS: "--advertise-tags=tag:nas"
+      # T3CODE_PORT: "3773"
+      # TS_SERVE_PORT: "443"
+    volumes:
+      - /mnt/REPLACE-POOL/apps/t3code:/data
